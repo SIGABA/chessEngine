@@ -1,8 +1,19 @@
 public class Evaluate {
 
-    char[][] board = new char[8][8];
-    double E = 0.0;
-    boolean endgame = false;
+/*
+* This class returns an evaluation for any given position.
+* The evaluation is returned as a double and indicates the advantage
+* of either side.
+* The evaluation is judged by 15 factors like pawn-structure, material,
+* controlled area, king safety and more.
+* During the initiation of an Object, each factor gets a multiplier set
+* between 0 and 1. This multiplier sets the significance of the factor
+* for the evaluation.
+*/
+
+    char[][] board = new char[8][8];    // the board is set as a 2d char-array
+    double E = 0.0;                     // the starting evaluation value for any position is 0
+    boolean endgame = false;            // indicates the current game-phase
 
     int value_White;
     int value_Black;
@@ -86,8 +97,7 @@ public class Evaluate {
     public double evaluate(char[][] array, int[][] whiteMoves, int[][] blackMoves){
         this.board = array;
 
-        //Resets the evaluation values, so you can call this method multiple times per instance
-        //That's why the evaluation was off the charts
+        // resets the evaluation values
         value_White = 0;
         value_Black = 0;
         whiteActivity = 0;
@@ -95,6 +105,8 @@ public class Evaluate {
         whiteArea = 0;
         blackArea = 0;
         E = 0;
+
+        // The following for-loops count the material on the board
 
         for (int y = 0; y<8; y++) {
             for (int x = 0; x<8; x++) {
@@ -126,6 +138,7 @@ public class Evaluate {
                         value_White += value_Queen;
                     }
                 }
+                // the king safety gets evaluated by looking at the surrounding squares
                 if (Character.toLowerCase(board[y][x]) == 'k'){
                     if (Character.toLowerCase(board[y][x]) == board[y][x]){
                         value_Black += value_King;
@@ -158,6 +171,9 @@ public class Evaluate {
         E += value_White;
         E -= value_Black;
 
+        // the endgame-phase gets initiated, if less the 16 points
+        // of material per side are left on the board (not counting the king)
+
         if ((value_White + value_Black)/2.0 <= 1016) {
             endgame = true;
         }
@@ -166,6 +182,9 @@ public class Evaluate {
         String subwm = new String("");
         String bm = new String("");
         String subbm = new String("");
+
+        // controlled are and piece activity gets measured and
+        // added to the evaluation
 
         whiteActivity = whiteMoves.length;
         blackActivity = blackMoves.length;
@@ -202,6 +221,9 @@ public class Evaluate {
 
 
     public String[] getSurroundings(int r, int f, boolean squares){
+    /*
+    * This class returns the surrounding squares or pieces of any given square
+    */
 
         String[] result = new String[8];
 
@@ -272,6 +294,10 @@ public class Evaluate {
 
 
     public int checkFile(int file, char character){
+        /*
+        * returns the number of specified pieces in a certain file
+        */
+
         int counter = 0;
 
         for (int r = 0; r<8; r++){
@@ -288,52 +314,58 @@ public class Evaluate {
         double n = 0;
         char current;
         char opponent;
-        int m = 1;
+        int m = 1;                  // this multiplier is positive for white and negative for black
 
-        if (board[r][f] == 'P') {
+        if (board[r][f] == 'P') {   // pawn is white
             current = 'P';
             opponent = 'p';
-        } else {
+        } else {                    // pawn is black
             current = 'p';
             opponent = 'P';
             m = -1;
         }
 
 
-        // passed
-        if (checkFile(f, opponent) == 0) {
-            if (f == 0 || checkFile(f - 1, opponent) == 0) {
-                if (f == 7 || checkFile(f + 1, opponent) == 0) {
+        // this code checks if the given pawn is passed, meaning if it has
+        // passed all pawns that could stop it
+        if (checkFile(f, opponent) == 0) {          // checks if the file is free of opposing pawns
+            if (f == 0 || checkFile(f - 1, opponent) == 0) {        // checks the file on the left
+                if (f == 7 || checkFile(f + 1, opponent) == 0) {    // checks the file on the right
                     if (current == 'P'){
-                        E += (value_passedPawn * 18) / (8 - (r + 1));
+                        E += (value_passedPawn * 18) / (8 - (r + 1));   // evaluation formula for white
                     } else {
-                        E -= (value_passedPawn * 18) /r;
+                        E -= (value_passedPawn * 18) /r;                // evaluation formula for black
                     }
                 }
             }
         }
 
-        // isolated
+        // this part checks for isolated pawns, which are pawns that can not be protected by
+        // other pawns.
+        // it checks the files on both sides for friendly pawns
         if (f == 0 || checkFile(f - 1, current) == 0) {
             if (f == 7 || checkFile(f + 1, current) == 0) {
                 E -= value_isolatedPawn * m;
             }
         }
 
-        // stacked
+        // this part searches stacked pawns, which means there are several pawns on the same file
         n = checkFile(f, current) - 1;
         E -= ((n * value_stackedPawn + ((n*(n-1))/2) * 0.2 * value_stackedPawn)/2) * m;
 
-        // advanced
+        // this code evaluates central pawns.
+        // the center is defined as the square with the corners c4 and f5
         if (f>=2 && f<=5){
-            if (current == 'p' && r<=5 && r>=3){
+            if (current == 'p' && r<=4 && r>=3){
                 E -= value_centralPawn;
-            } else if(current == 'P' && r<=4 && r>=2) {
+            } else if(current == 'P' && r<=4 && r>=3) {
                 E += value_centralPawn;
             }
         }
 
-        // endgame pawnmoves
+        // this part is only active in the endgame, meaning there are almost no
+        // pieces left on the board.
+        // the method evaluates advanced pawns positive, regardless of the center
         if (endgame) {
             if (current == 'P') {
                 E += value_advancedPawn * r;
@@ -342,7 +374,7 @@ public class Evaluate {
             }
         }
 
-        // chain
+        // the following code searches for pawnchains and evaluates them
         int tmp = 0;
 
         if (f!=7 && r!=7){
@@ -372,6 +404,7 @@ public class Evaluate {
 
 
     public void knight(int r, int f) {
+        // this method evaluates knights which are rather in the center instead of the edges
         int m = 1;
 
         if (board[r][f] == 'n') {m = -1;}
@@ -385,6 +418,8 @@ public class Evaluate {
 
 
     public void rook(int r, int f){
+        // this method evaluates rooks on the 7th (or 2nd) rank and
+        // rooks in the center of the board
 
         int m = 1;
         if (board[r][f] == 'r') {m = -1;}
@@ -403,6 +438,8 @@ public class Evaluate {
 
 
     public void king(int r, int f) {
+        // the following code evaluates the king in the endgame and the king-safety
+        // specifically, the king is supposed to lead the pawns in the endgame
 
         int m = 1;
         int r_ = r;
@@ -438,6 +475,8 @@ public class Evaluate {
                 }
             }
         } else {
+            // in any gamephase other than the endgame, the king is supposed to
+            // stay in the corners, and it should be sheltered by pawns
             if (r == 0 && (f == 0 || f == 1 || f == 6 || f == 7)) {
                 E += value_kingSafety * m;
             } else if (r == 1 && (f == 0 || f == 7)) {
